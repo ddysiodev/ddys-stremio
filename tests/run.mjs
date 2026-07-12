@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { encodeConfigToken, decodeConfigToken } from '../src/core/config.mjs';
+import { base64UrlDecode, base64UrlEncode, decodeConfigToken, encodeConfigToken, normalizeOptions } from '../src/core/config.mjs';
 import { buildCatalog, buildManifest, buildMeta, buildStreams, createMetaId } from '../src/core/stremio.mjs';
 import { handleRequest } from '../src/core/http.mjs';
 
@@ -92,18 +92,29 @@ const runtime = { fetch: mockFetch };
 
 const token = encodeConfigToken(options);
 assert.equal(decodeConfigToken(token).apiBase, options.apiBase);
+assert.equal(base64UrlDecode(base64UrlEncode('低端影视')), '低端影视');
+assert.equal(normalizeOptions({ enableDirectPlay: '0' }).enableDirectPlay, false);
 
 const manifest = buildManifest(options, 'https://addon.example.test');
 assert.equal(manifest.id, 'io.ddys.stremio');
 assert(manifest.resources.includes('catalog'));
 assert(manifest.catalogs.some((catalog) => catalog.extra.some((extra) => extra.name === 'search')));
 
-const latest = await buildCatalog('movie', 'ddys-latest', {}, options, runtime);
-assert.equal(latest.metas.length, 2);
+const latest = await buildCatalog('movie', 'ddys-latest-movie', {}, options, runtime);
+assert.equal(latest.metas.length, 1);
 assert.equal(latest.metas[0].id, createMetaId('sample-movie'));
 
+const latestSeries = await buildCatalog('series', 'ddys-latest-series', {}, options, runtime);
+assert.equal(latestSeries.metas.length, 1);
+assert.equal(latestSeries.metas[0].type, 'series');
+
 const search = await buildCatalog('movie', 'ddys-search-movie', { search: '示例' }, options, runtime);
-assert.equal(search.metas.length, 2);
+assert.equal(search.metas.length, 1);
+assert.equal(search.metas[0].type, 'movie');
+
+const seriesSearch = await buildCatalog('series', 'ddys-search-series', { search: '示例' }, options, runtime);
+assert.equal(seriesSearch.metas.length, 1);
+assert.equal(seriesSearch.metas[0].type, 'series');
 
 const meta = await buildMeta('series', createMetaId('sample-series'), options, runtime);
 assert.equal(meta.meta.name, '示例剧集');
@@ -118,10 +129,19 @@ assert(allStreams.streams.some((stream) => stream.externalUrl));
 const response = await handleRequest(new Request(`https://addon.example.test/${token}/catalog/movie/ddys-search-movie/search=${encodeURIComponent('示例')}.json`), runtime);
 assert.equal(response.status, 200);
 const body = await response.json();
-assert.equal(body.metas.length, 2);
+assert.equal(body.metas.length, 1);
+assert.equal(body.metas[0].type, 'movie');
 
 const manifestResponse = await handleRequest(new Request(`https://addon.example.test/${token}/manifest.json`), runtime);
 assert.equal(manifestResponse.status, 200);
 assert.equal((await manifestResponse.json()).catalogs.length, manifest.catalogs.length);
 
-console.log(JSON.stringify({ ok: true, tests: 8 }, null, 2));
+const originalBuffer = globalThis.Buffer;
+globalThis.Buffer = undefined;
+try {
+  assert.equal(decodeConfigToken(encodeConfigToken({ apiBase: 'https://worker.example.test' })).apiBase, 'https://worker.example.test');
+} finally {
+  globalThis.Buffer = originalBuffer;
+}
+
+console.log(JSON.stringify({ ok: true, tests: 12 }, null, 2));

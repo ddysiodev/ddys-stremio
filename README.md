@@ -5,7 +5,7 @@
 ## 功能
 
 - `manifest.json`：声明 DDYS catalog、meta、stream、subtitles 资源。
-- 首页目录：最新更新、热门内容。
+- 首页目录：最新电影、最新剧集、热门电影、热门剧集。
 - 分类目录：电影、剧集、动漫、综艺、纪录片。
 - DDYS 搜索：通过 Stremio catalog extra `search` 提供全局搜索入口。
 - 详情页：标题、封面、简介、年份、地区、类型、导演、演员、评分、源站链接。

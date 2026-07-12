@@ -5,8 +5,10 @@ export const ADDON_ID = 'io.ddys.stremio';
 export const ADDON_NAME = '低端影视 DDYS';
 
 const catalogs = [
-  { type: 'movie', id: 'ddys-latest', name: 'DDYS 最新更新', kind: 'latest', mediaType: 'movie' },
-  { type: 'movie', id: 'ddys-hot', name: 'DDYS 热门内容', kind: 'hot', mediaType: 'movie' },
+  { type: 'movie', id: 'ddys-latest-movie', name: 'DDYS 最新电影', kind: 'latest', mediaType: 'movie' },
+  { type: 'series', id: 'ddys-latest-series', name: 'DDYS 最新剧集', kind: 'latest', mediaType: 'series' },
+  { type: 'movie', id: 'ddys-hot-movie', name: 'DDYS 热门电影', kind: 'hot', mediaType: 'movie' },
+  { type: 'series', id: 'ddys-hot-series', name: 'DDYS 热门剧集', kind: 'hot', mediaType: 'series' },
   { type: 'movie', id: 'ddys-movie', name: 'DDYS 电影', kind: 'category', mediaType: 'movie' },
   { type: 'series', id: 'ddys-series', name: 'DDYS 剧集', kind: 'category', mediaType: 'series' },
   { type: 'series', id: 'ddys-anime', name: 'DDYS 动漫', kind: 'category', mediaType: 'anime' },
@@ -69,20 +71,22 @@ export async function buildCatalog(type, id, extra = {}, options = {}, runtime =
   if (search) {
     const result = await client.search(search, Math.floor(skip / limit) + 1, limit, runtime.signal);
     movies = filterCatalogType(result.data, catalog.mediaType);
-    total = result.total || movies.length;
+    total = movies.length;
   } else if (catalog.kind === 'search') {
     movies = [];
   } else if (catalog.kind === 'latest') {
-    const fetched = await client.latest(skip + settings.homeLimit, runtime.signal);
-    movies = fetched.slice(skip, skip + settings.homeLimit);
-    total = fetched.length;
+    const fetched = await client.latest(Math.min(80, skip + settings.homeLimit * 2), runtime.signal);
+    const typed = filterCatalogType(fetched, catalog.mediaType);
+    movies = typed.slice(skip, skip + settings.homeLimit);
+    total = typed.length;
   } else if (catalog.kind === 'hot') {
-    const fetched = await client.hot(skip + settings.homeLimit, runtime.signal);
-    movies = fetched.slice(skip, skip + settings.homeLimit);
-    total = fetched.length;
+    const fetched = await client.hot(Math.min(80, skip + settings.homeLimit * 2), runtime.signal);
+    const typed = filterCatalogType(fetched, catalog.mediaType);
+    movies = typed.slice(skip, skip + settings.homeLimit);
+    total = typed.length;
   } else {
     const result = await client.movies(catalog.mediaType, Math.floor(skip / limit) + 1, limit, runtime.signal);
-    movies = result.data;
+    movies = filterCatalogType(result.data, catalog.mediaType);
     total = result.total || movies.length;
   }
 
@@ -279,11 +283,15 @@ function toStream(resource, settings) {
 }
 
 function filterCatalogType(movies, mediaType) {
-  if (!['series', 'anime', 'variety'].includes(mediaType)) {
-    return movies;
+  if (['series', 'anime', 'variety'].includes(mediaType)) {
+    return movies.filter((movie) => inferStremioType(movie) === 'series');
   }
 
-  return movies.filter((movie) => inferStremioType(movie) === 'series');
+  if (['movie', 'documentary'].includes(mediaType)) {
+    return movies.filter((movie) => inferStremioType(movie) === 'movie');
+  }
+
+  return movies;
 }
 
 function inferStremioType(movie) {

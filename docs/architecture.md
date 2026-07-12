@@ -31,3 +31,4 @@
 - 网盘和下载页以 `externalUrl` 返回。
 - 配置 token 无效时回落默认配置。
 - Worker 核心不依赖 `node:fs`、`node:path` 等 Node 专属模块。
+- 配置 token 编解码不依赖 Node `Buffer`，可在 Cloudflare Workers 默认运行时中执行。

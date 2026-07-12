@@ -5,7 +5,7 @@ Official full-feature Stremio addon for the DDYS API. It provides DDYS catalogs,
 ## Features
 
 - Stremio `manifest.json` with catalog, meta, stream, and subtitles resources.
-- Catalogs for latest, hot, movies, series, anime, variety, and documentaries.
+- Catalogs for latest movies, latest series, hot movies, hot series, movies, series, anime, variety, and documentaries.
 - Search through catalog extra `search`.
 - Metadata pages with poster, overview, year, region, type, director, cast, rating, and source links.
 - Direct streams for common media URLs such as `.m3u8`, `.mp4`, `.mkv`, `.webm`, and `.mpd`.

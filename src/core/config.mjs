@@ -25,10 +25,10 @@ export function normalizeOptions(input = {}) {
   options.homeLimit = clampNumber(options.homeLimit, DEFAULTS.homeLimit, 1, 80);
   options.timeoutSeconds = clampNumber(options.timeoutSeconds, DEFAULTS.timeoutSeconds, 3, 60);
   options.cacheMinutes = clampNumber(options.cacheMinutes, DEFAULTS.cacheMinutes, 1, 120);
-  options.enableCache = options.enableCache !== false && options.enableCache !== 'false';
-  options.enableDirectPlay = options.enableDirectPlay !== false && options.enableDirectPlay !== 'false';
-  options.showExternalResources = options.showExternalResources !== false && options.showExternalResources !== 'false';
-  options.includeRelatedItems = options.includeRelatedItems !== false && options.includeRelatedItems !== 'false';
+  options.enableCache = toBool(options.enableCache, DEFAULTS.enableCache);
+  options.enableDirectPlay = toBool(options.enableDirectPlay, DEFAULTS.enableDirectPlay);
+  options.showExternalResources = toBool(options.showExternalResources, DEFAULTS.showExternalResources);
+  options.includeRelatedItems = toBool(options.includeRelatedItems, DEFAULTS.includeRelatedItems);
   return options;
 }
 
@@ -69,8 +69,7 @@ export function configFromSearchParams(searchParams) {
 }
 
 export function base64UrlEncode(value) {
-  return Buffer.from(String(value), 'utf8')
-    .toString('base64')
+  return utf8ToBase64(String(value))
     .replaceAll('+', '-')
     .replaceAll('/', '_')
     .replace(/=+$/u, '');
@@ -79,7 +78,7 @@ export function base64UrlEncode(value) {
 export function base64UrlDecode(value) {
   const text = String(value || '').replaceAll('-', '+').replaceAll('_', '/');
   const padded = text.padEnd(text.length + ((4 - (text.length % 4)) % 4), '=');
-  return Buffer.from(padded, 'base64').toString('utf8');
+  return base64ToUtf8(padded);
 }
 
 export function safeJson(value) {
@@ -102,4 +101,42 @@ function clampNumber(value, fallback, min, max) {
   }
 
   return Math.min(max, Math.max(min, Math.trunc(number)));
+}
+
+function toBool(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  return !['false', '0', 'no', 'off'].includes(String(value).trim().toLowerCase());
+}
+
+function utf8ToBase64(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  if (typeof btoa === 'function') {
+    return btoa(binary);
+  }
+
+  return Buffer.from(value, 'utf8').toString('base64');
+}
+
+function base64ToUtf8(value) {
+  let binary;
+  if (typeof atob === 'function') {
+    binary = atob(value);
+  } else {
+    binary = Buffer.from(value, 'base64').toString('binary');
+  }
+
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
