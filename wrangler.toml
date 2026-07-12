@@ -1,0 +1,7 @@
+name = "ddys-stremio"
+main = "src/worker.mjs"
+compatibility_date = "2026-07-12"
+workers_dev = true
+
+[observability]
+enabled = true

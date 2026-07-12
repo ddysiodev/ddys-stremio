@@ -1,0 +1,10 @@
+node_modules/
+dist/
+package/
+coverage/
+*.log
+*.tmp
+*.zip
+.env
+.env.*
+!.env.example
