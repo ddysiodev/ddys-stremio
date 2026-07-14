@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const version = '0.1.1';
 const required = [
+  '.gitattributes',
   '.gitignore',
   '.github/workflows/build.yml',
   'LICENSE',
@@ -132,6 +133,9 @@ async function main() {
   includesAll(buildScript, ['ddys-stremio-v{0}.zip', 'DdysZipCrc32', '0x04034b50', '0x02014b50', '0x06054b50', '[System.StringComparer]::Ordinal.Compare', 'Get-FileHash', '[System.IO.File]::WriteAllText', '[System.Text.Encoding]::ASCII', 'Assert-InRoot', '.wrangler', 'releases', 'sha256'], 'build script');
   assert(!buildScript.includes('Compress-Archive'), 'build script must not use non-deterministic Compress-Archive.');
   assert(!buildScript.includes('Set-Content -LiteralPath $ShaFile'), 'checksum writer must not add implicit newlines.');
+
+  const gitAttributes = await read('.gitattributes');
+  includesAll(gitAttributes, ['* text=auto eol=lf', '*.zip binary', '*.sha256 text eol=lf'], '.gitattributes');
 
   const files = await listFiles();
   for (const file of files) {
