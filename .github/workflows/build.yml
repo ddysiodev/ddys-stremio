@@ -27,16 +27,12 @@ jobs:
 
       - name: Build package
         shell: pwsh
-        run: ./tools/build-package.ps1 -Version "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.1.0' }}"
-
-      - name: Collect artifact
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item -Path ..\..\releases\ddys-stremio-v*.zip -Destination dist -Force
+        run: ./tools/build-package.ps1 -Version "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.1.1' }}"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ddys-stremio
-          path: dist/ddys-stremio-v*.zip
+          name: ddys-stremio-v0.1.1
+          path: |
+            releases/ddys-stremio-v0.1.1.zip
+            releases/ddys-stremio-v0.1.1.zip.sha256

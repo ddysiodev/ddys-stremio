@@ -32,3 +32,4 @@
 - 配置 token 无效时回落默认配置。
 - Worker 核心不依赖 `node:fs`、`node:path` 等 Node 专属模块。
 - 配置 token 编解码不依赖 Node `Buffer`，可在 Cloudflare Workers 默认运行时中执行。
+- Release 打包使用固定排序、固定 ZIP 时间戳和稳定 ASCII `.sha256` 文件，避免不同机器生成不同资产。

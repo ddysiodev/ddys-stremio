@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { base64UrlDecode, base64UrlEncode, decodeConfigToken, encodeConfigToken, normalizeOptions } from '../src/core/config.mjs';
-import { buildCatalog, buildManifest, buildMeta, buildStreams, createMetaId } from '../src/core/stremio.mjs';
+import {
+  buildCatalog,
+  buildManifest,
+  buildMeta,
+  buildStreams,
+  buildSubtitles,
+  createMetaId,
+  createSourceId,
+  listCatalogDefinitions,
+  parseDdysId
+} from '../src/core/stremio.mjs';
 import { handleRequest } from '../src/core/http.mjs';
 
 const sampleMovie = {
@@ -97,8 +107,22 @@ assert.equal(normalizeOptions({ enableDirectPlay: '0' }).enableDirectPlay, false
 
 const manifest = buildManifest(options, 'https://addon.example.test');
 assert.equal(manifest.id, 'io.ddys.stremio');
+assert.equal(manifest.version, '0.1.1');
 assert(manifest.resources.includes('catalog'));
 assert(manifest.catalogs.some((catalog) => catalog.extra.some((extra) => extra.name === 'search')));
+assert.equal(manifest.behaviorHints.configurable, true);
+assert.equal(manifest.logo, 'https://addon.example.test/assets/logo.png');
+assert(listCatalogDefinitions().some((catalog) => catalog.id === 'ddys-documentary'));
+
+const emptySearch = await buildCatalog('movie', 'ddys-search-movie', {}, options, {
+  fetch() {
+    throw new Error('empty search must not call fetch');
+  }
+});
+assert.deepEqual(emptySearch.metas, []);
+
+const unknownCatalog = await buildCatalog('movie', 'missing-catalog', {}, options, runtime);
+assert.deepEqual(unknownCatalog.metas, []);
 
 const latest = await buildCatalog('movie', 'ddys-latest-movie', {}, options, runtime);
 assert.equal(latest.metas.length, 1);
@@ -107,6 +131,12 @@ assert.equal(latest.metas[0].id, createMetaId('sample-movie'));
 const latestSeries = await buildCatalog('series', 'ddys-latest-series', {}, options, runtime);
 assert.equal(latestSeries.metas.length, 1);
 assert.equal(latestSeries.metas[0].type, 'series');
+
+const hot = await buildCatalog('movie', 'ddys-hot-movie', {}, options, runtime);
+assert.equal(hot.metas.length, 1);
+
+const category = await buildCatalog('movie', 'ddys-movie', { skip: '0' }, options, runtime);
+assert.equal(category.metas.length, 1);
 
 const search = await buildCatalog('movie', 'ddys-search-movie', { search: '示例' }, options, runtime);
 assert.equal(search.metas.length, 1);
@@ -119,12 +149,31 @@ assert.equal(seriesSearch.metas[0].type, 'series');
 const meta = await buildMeta('series', createMetaId('sample-series'), options, runtime);
 assert.equal(meta.meta.name, '示例剧集');
 assert.equal(meta.meta.videos.length, 3);
+assert.equal(meta.meta.behaviorHints.defaultVideoId, createSourceId('sample-series', 0, 0));
+
+assert.equal((await buildMeta('movie', 'invalid-id', options, runtime)).meta, null);
+assert.deepEqual(await buildStreams('movie', 'invalid-id', options, runtime), { streams: [] });
 
 const allStreams = await buildStreams('series', createMetaId('sample-series'), options, runtime);
 assert.equal(allStreams.streams.length, 3);
 assert(allStreams.streams.some((stream) => stream.url?.endsWith('.m3u8')));
 assert(allStreams.streams.some((stream) => stream.infoHash));
 assert(allStreams.streams.some((stream) => stream.externalUrl));
+
+const singleStream = await buildStreams('series', createSourceId('sample-series', 0, 1), options, runtime);
+assert.equal(singleStream.streams.length, 1);
+assert(singleStream.streams[0].infoHash);
+
+const noExternalStreams = await buildStreams('series', createMetaId('sample-series'), {
+  ...options,
+  enableDirectPlay: false,
+  showExternalResources: false
+}, runtime);
+assert.equal(noExternalStreams.streams.length, 1);
+assert(noExternalStreams.streams[0].infoHash);
+
+assert.deepEqual(buildSubtitles(), { subtitles: [] });
+assert.deepEqual(parseDdysId('bad'), { slug: '', source: null });
 
 const response = await handleRequest(new Request(`https://addon.example.test/${token}/catalog/movie/ddys-search-movie/search=${encodeURIComponent('示例')}.json`), runtime);
 assert.equal(response.status, 200);
@@ -136,6 +185,28 @@ const manifestResponse = await handleRequest(new Request(`https://addon.example.
 assert.equal(manifestResponse.status, 200);
 assert.equal((await manifestResponse.json()).catalogs.length, manifest.catalogs.length);
 
+const healthResponse = await handleRequest(new Request('https://addon.example.test/health'), runtime);
+assert.equal(healthResponse.status, 200);
+assert.equal((await healthResponse.json()).addon, 'ddys-stremio');
+
+const optionsResponse = await handleRequest(new Request('https://addon.example.test/manifest.json', { method: 'OPTIONS' }), runtime);
+assert.equal(optionsResponse.status, 204);
+assert.equal(optionsResponse.headers.get('access-control-allow-origin'), '*');
+
+const logoResponse = await handleRequest(new Request('https://addon.example.test/assets/logo.png'), runtime);
+assert.equal(logoResponse.status, 200);
+assert.equal(logoResponse.headers.get('content-type'), 'image/png');
+
+const missingAssetResponse = await handleRequest(new Request('https://addon.example.test/assets/missing.png'), runtime);
+assert.equal(missingAssetResponse.status, 404);
+
+const configureResponse = await handleRequest(new Request('https://addon.example.test/configure'), runtime);
+assert.equal(configureResponse.status, 200);
+assert((await configureResponse.text()).includes('stremio://'));
+
+const notFoundResponse = await handleRequest(new Request('https://addon.example.test/nope'), runtime);
+assert.equal(notFoundResponse.status, 404);
+
 const originalBuffer = globalThis.Buffer;
 globalThis.Buffer = undefined;
 try {
@@ -144,4 +215,4 @@ try {
   globalThis.Buffer = originalBuffer;
 }
 
-console.log(JSON.stringify({ ok: true, tests: 12 }, null, 2));
+console.log(JSON.stringify({ ok: true, tests: 30 }, null, 2));

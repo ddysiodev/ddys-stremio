@@ -1,6 +1,6 @@
 {
   "name": "ddys-stremio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official Stremio addon for the DDYS API.",
   "type": "module",
   "private": true,
@@ -8,7 +8,7 @@
     "start": "node src/server.mjs",
     "check": "node tools/check.mjs",
     "test": "node tests/run.mjs",
-    "package": "powershell -ExecutionPolicy Bypass -File tools/build-package.ps1"
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/build-package.ps1"
   },
   "keywords": [
     "ddys",
@@ -17,5 +17,8 @@
     "catalog",
     "stream"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }
